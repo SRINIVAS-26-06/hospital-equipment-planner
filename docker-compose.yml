@@ -1,0 +1,100 @@
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: planner
+      POSTGRES_USER: planner
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U planner"]
+      interval: 5s
+      retries: 10
+
+  backend:
+    build: ./backend
+    environment:
+      DB_URL: jdbc:postgresql://db:5432/planner
+      DB_USER: planner
+      DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
+      PLANNER_ADMIN_PASSWORD: ${PLANNER_ADMIN_PASSWORD:?Required}
+      PLANNER_ENGINEER_PASSWORD: ${PLANNER_ENGINEER_PASSWORD:?Required}
+      PLANNER_STAFF_PASSWORD: ${PLANNER_STAFF_PASSWORD:?Required}
+      PLANNER_VIEWER_PASSWORD: ${PLANNER_VIEWER_PASSWORD:?Required}
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+
+  frontend:
+    build: ./frontend
+    depends_on:
+      - backend
+    ports:
+      - "3000:80"
+
+  # One-off full snapshot exporter
+  analytics:
+    build: ./analytics
+    profiles: ["analytics"]
+    environment:
+      DATABASE_URL: postgresql://planner:${DB_PASSWORD:?DB_PASSWORD is required}@db:5432/planner
+      EXPORT_SALT: ${EXPORT_SALT:?EXPORT_SALT is required}
+      S3_BUCKET: ${S3_BUCKET:?S3_BUCKET is required}
+      S3_PREFIX: ${S3_PREFIX:-hospital-equipment/}
+      AWS_REGION: ${AWS_REGION:-ap-south-1}
+    volumes:
+      - "./out:/app/out"
+      - "${USERPROFILE}/.aws:/root/.aws:ro"
+    depends_on:
+      db:
+        condition: service_healthy
+    command: ["--out", "/app/out"]
+
+  # Incremental PostgreSQL Outbox consumer
+  outbox-worker:
+    build: ./analytics
+    profiles: ["outbox"]
+    entrypoint: ["python", "outbox_worker.py"]
+    environment:
+      DATABASE_URL: postgresql://planner:${DB_PASSWORD:?DB_PASSWORD is required}@db:5432/planner
+      S3_BUCKET: ${S3_BUCKET:?S3_BUCKET is required}
+      OUTBOX_S3_PREFIX: hospital-equipment/outbox/events/
+      AWS_REGION: ${AWS_REGION:-ap-south-1}
+      OUTBOX_BATCH_SIZE: 20
+      OUTBOX_POLL_INTERVAL: 10
+    volumes:
+      - "${USERPROFILE}/.aws:/root/.aws:ro"
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+  
+  
+  incremental-processor:
+    build: ./analytics
+    profiles: ["incremental"]
+    entrypoint: ["python", "incremental_processor.py"]
+    environment:
+      DATABASE_URL: postgresql://planner:${DB_PASSWORD:?DB_PASSWORD is required}@db:5432/planner
+      S3_BUCKET: ${S3_BUCKET:?S3_BUCKET is required}
+      AWS_REGION: ${AWS_REGION:-ap-south-1}
+      OUTBOX_NOTIFICATION_QUEUE_URL: https://sqs.ap-south-1.amazonaws.com/399258986697/hospital-equipment-outbox-notifications
+      PROCESSOR_POLL_INTERVAL: 10
+      EXPORT_SALT: ${EXPORT_SALT:?EXPORT_SALT is required}
+    volumes:
+      - "${USERPROFILE}/.aws:/root/.aws:ro"
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+
+
+volumes:
+  pgdata:
