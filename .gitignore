@@ -31,3 +31,8 @@ Thumbs.db
 # Temporary files
 *.tmp
 *.bak
+# Production SSL certificates and challenge files
+certbot/
+
+# Production environment
+.env.prod
