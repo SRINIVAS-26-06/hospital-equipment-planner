@@ -150,6 +150,13 @@ jobs:
               -f docker-compose.prod.yml \
               up -d --remove-orphans
 
+            echo "Recreating Nginx to refresh container connections..."
+
+            docker compose \
+              --env-file .env.prod \
+              -f docker-compose.prod.yml \
+              up -d --force-recreate nginx
+
             echo "Checking deployment status..."
 
             docker compose \
