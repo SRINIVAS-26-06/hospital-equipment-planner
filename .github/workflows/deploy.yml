@@ -19,6 +19,7 @@ env:
 
 jobs:
   build-and-push:
+    name: Build and Push Docker Images
     runs-on: ubuntu-latest
 
     steps:
@@ -69,6 +70,9 @@ jobs:
     if: github.ref == 'refs/heads/main'
 
     steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
       - name: Configure SSH
         uses: webfactory/ssh-agent@v0.9.0
         with:
@@ -82,20 +86,78 @@ jobs:
         env:
           EC2_HOST: ${{ secrets.EC2_HOST }}
 
-      - name: Deploy application
+      - name: Copy production configuration to EC2
+        run: |
+          set -e
+
+          REMOTE="$EC2_USERNAME@$EC2_HOST"
+          REMOTE_DIR="/home/ubuntu/hospital-equipment-planner"
+
+          ssh "$REMOTE" "
+            mkdir -p '$REMOTE_DIR/nginx'
+            mkdir -p '$REMOTE_DIR/scripts'
+          "
+
+          scp docker-compose.prod.yml \
+            "$REMOTE:$REMOTE_DIR/docker-compose.prod.yml.tmp"
+
+          scp nginx/default.conf \
+            "$REMOTE:$REMOTE_DIR/nginx/default.conf.tmp"
+
+          scp scripts/renew-cert.sh \
+            "$REMOTE:$REMOTE_DIR/scripts/renew-cert.sh.tmp"
+
+          ssh "$REMOTE" "
+            set -e
+
+            cd '$REMOTE_DIR'
+
+            mv docker-compose.prod.yml.tmp docker-compose.prod.yml
+            mv nginx/default.conf.tmp nginx/default.conf
+            mv scripts/renew-cert.sh.tmp scripts/renew-cert.sh
+
+            chmod +x scripts/renew-cert.sh
+          "
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_USERNAME: ${{ secrets.EC2_USERNAME }}
+
+      - name: Validate and deploy application
         run: |
           ssh "$EC2_USERNAME@$EC2_HOST" '
             set -e
+
             cd /home/ubuntu/hospital-equipment-planner
 
+            echo "Validating production configuration..."
+
+            docker compose \
+              --env-file .env.prod \
+              -f docker-compose.prod.yml \
+              config --quiet
+
             echo "Pulling latest Docker images..."
-            docker compose --env-file .env.prod -f docker-compose.prod.yml pull
 
-            echo "Updating application containers..."
-            docker compose --env-file .env.prod -f docker-compose.prod.yml up -d --remove-orphans
+            docker compose \
+              --env-file .env.prod \
+              -f docker-compose.prod.yml \
+              pull
 
-            echo "Deployment status:"
-            docker compose --env-file .env.prod -f docker-compose.prod.yml ps
+            echo "Deploying application..."
+
+            docker compose \
+              --env-file .env.prod \
+              -f docker-compose.prod.yml \
+              up -d --remove-orphans
+
+            echo "Checking deployment status..."
+
+            docker compose \
+              --env-file .env.prod \
+              -f docker-compose.prod.yml \
+              ps
+
+            echo "Deployment completed successfully."
           '
         env:
           EC2_HOST: ${{ secrets.EC2_HOST }}
