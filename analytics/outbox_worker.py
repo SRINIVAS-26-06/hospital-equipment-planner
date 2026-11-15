@@ -12,10 +12,6 @@ from psycopg.rows import dict_row
 from botocore.exceptions import BotoCoreError, ClientError
 
 
-# --------------------------------------------------
-# CONFIGURATION
-# --------------------------------------------------
-
 DATABASE_URL = os.getenv("DATABASE_URL")
 
 AWS_REGION = os.getenv("AWS_REGION", "ap-south-1")
@@ -39,10 +35,6 @@ logger = logging.getLogger(__name__)
 
 s3 = boto3.client("s3", region_name=AWS_REGION)
 
-
-# --------------------------------------------------
-# CLAIM PENDING EVENTS
-# --------------------------------------------------
 
 def claim_events():
 
@@ -94,9 +86,6 @@ def claim_events():
     return events
 
 
-# --------------------------------------------------
-# BUILD JSONL BATCH
-# --------------------------------------------------
 
 def build_jsonl(events):
 
@@ -118,9 +107,6 @@ def build_jsonl(events):
     return ("\n".join(lines) + "\n").encode("utf-8")
 
 
-# --------------------------------------------------
-# UPLOAD EVENTS TO S3
-# --------------------------------------------------
 
 def upload_to_s3(events):
 
@@ -158,9 +144,6 @@ def upload_to_s3(events):
     return key
 
 
-# --------------------------------------------------
-# MARK EVENTS AS PROCESSED
-# --------------------------------------------------
 
 def mark_processed(events):
 
@@ -197,9 +180,6 @@ def mark_processed(events):
     )
 
 
-# --------------------------------------------------
-# HANDLE FAILED EVENTS
-# --------------------------------------------------
 
 def release_failed_events(events, error):
 
@@ -247,9 +227,6 @@ def release_failed_events(events, error):
     )
 
 
-# --------------------------------------------------
-# PROCESS ONE BATCH
-# --------------------------------------------------
 
 def process_batch():
 
@@ -286,10 +263,6 @@ def process_batch():
 
         return False
 
-
-# --------------------------------------------------
-# MAIN WORKER LOOP
-# --------------------------------------------------
 
 def main():
 

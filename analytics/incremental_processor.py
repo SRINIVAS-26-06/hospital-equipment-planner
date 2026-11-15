@@ -46,9 +46,6 @@ except ImportError as exc:
     ) from exc
 
 
-# ---------------------------------------------------------------------------
-# Configuration
-# ---------------------------------------------------------------------------
 
 AWS_REGION = os.getenv("AWS_REGION", "ap-south-1")
 S3_BUCKET = os.getenv(
@@ -101,9 +98,6 @@ sqs = boto3.client("sqs", region_name=AWS_REGION)
 STOP = False
 
 
-# ---------------------------------------------------------------------------
-# The 10 exact target datasets and their business-key definitions.
-# ---------------------------------------------------------------------------
 
 TARGETS: dict[str, dict[str, Any]] = {
     "equipment": {
@@ -251,9 +245,6 @@ DELETE_KEY_MAP = {
 }
 
 
-# ---------------------------------------------------------------------------
-# SQS/S3 notification parsing
-# ---------------------------------------------------------------------------
 
 def parse_s3_notification(body: str) -> list[dict[str, str]]:
     payload = json.loads(body)
@@ -324,9 +315,6 @@ def read_jsonl(bucket: str, key: str) -> list[dict[str, Any]]:
 
     return events
 
-# ---------------------------------------------------------------------------
-# Dataframe -> exact incremental staging CSV format
-# ---------------------------------------------------------------------------
 
 def scalar(value: Any) -> Any:
     if value is None:
@@ -562,9 +550,6 @@ def make_csv(
     return output.getvalue(), count
 
 
-# ---------------------------------------------------------------------------
-# Rebuild the 10 reports using the exact existing export.py transformations.
-# ---------------------------------------------------------------------------
 
 def rebuild_reports() -> dict[str, pd.DataFrame]:
     now = pd.Timestamp(
@@ -770,9 +755,6 @@ def upload_completion_manifest(
     return manifest_key
 
 
-# ---------------------------------------------------------------------------
-# Event validation and orchestration
-# ---------------------------------------------------------------------------
 
 def validate_event_types(
     events: list[dict[str, Any]]

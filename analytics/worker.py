@@ -11,9 +11,6 @@ import boto3
 from botocore.exceptions import BotoCoreError, ClientError
 
 
-# --------------------------------------------------
-# CONFIGURATION
-# --------------------------------------------------
 
 AWS_REGION = os.getenv("AWS_REGION", "ap-south-1")
 QUEUE_URL = os.getenv("SQS_QUEUE_URL", "")
@@ -30,9 +27,6 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-# --------------------------------------------------
-# AWS SQS CLIENT
-# --------------------------------------------------
 
 sqs = boto3.client(
     "sqs",
@@ -40,9 +34,6 @@ sqs = boto3.client(
 )
 
 
-# --------------------------------------------------
-# VISIBILITY TIMEOUT HEARTBEAT
-# --------------------------------------------------
 
 def maintain_visibility(receipt_handle, stop_event):
 
@@ -61,10 +52,6 @@ def maintain_visibility(receipt_handle, stop_event):
             logger.exception("Could not extend message visibility")
             return
 
-
-# --------------------------------------------------
-# RUN ANALYTICS EXPORTER
-# --------------------------------------------------
 
 def run_export():
 
@@ -92,9 +79,6 @@ def run_export():
     logger.info("Analytics export completed successfully")
 
 
-# --------------------------------------------------
-# PROCESS SQS MESSAGE
-# --------------------------------------------------
 
 def process_message(message):
 
@@ -150,9 +134,6 @@ def process_message(message):
             heartbeat_thread.join(timeout=5)
 
 
-# --------------------------------------------------
-# MAIN WORKER LOOP
-# --------------------------------------------------
 
 def main():
 

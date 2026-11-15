@@ -89,9 +89,7 @@ def utilization_by_department(per_asset: pd.DataFrame) -> pd.DataFrame:
     return g
 
 
-# ---------------------------------------------------------------------------------------------
-# Full model used by export.py: same rules as the backend's UtilizationService, from DataFrames.
-# ---------------------------------------------------------------------------------------------
+
 def _col(df, name):
     return df[name] if df is not None and not df.empty and name in df.columns else None
 
